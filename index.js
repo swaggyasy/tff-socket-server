@@ -7,13 +7,14 @@ const cors = require('cors');
 const app = express();
 const httpServer = createServer(app);
 
+// Get allowed origins from environment variable or use defaults
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? 
+  process.env.ALLOWED_ORIGINS.split(',') : 
+  ['http://localhost:3000', 'https://projecttff-80675.web.app', 'https://projecttff-80675.firebaseapp.com'];
+
 // Configure CORS
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://projecttff-80675.web.app',
-    'https://projecttff-80675.firebaseapp.com'
-  ],
+  origin: ALLOWED_ORIGINS,
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: false
 }));
@@ -21,11 +22,7 @@ app.use(cors({
 // Create Socket.IO server
 const io = new Server(httpServer, {
   cors: {
-    origin: [
-      'http://localhost:3000',
-      'https://projecttff-80675.web.app',
-      'https://projecttff-80675.firebaseapp.com'
-    ],
+    origin: ALLOWED_ORIGINS,
     methods: ['GET', 'POST'],
     credentials: false
   },
@@ -60,11 +57,16 @@ io.on('connection', (socket) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Start the server
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  console.log('Allowed origins:', ALLOWED_ORIGINS);
 }); 
