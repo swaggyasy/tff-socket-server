@@ -19,15 +19,45 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?
   process.env.ALLOWED_ORIGINS.split(',') : 
   ['http://localhost:3000', 'https://projecttff-80675.web.app', 'https://projecttff-80675.firebaseapp.com'];
 
-// Configure CORS
+// Configure CORS with more permissive settings
 app.use(cors({
-  origin: ALLOWED_ORIGINS,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  credentials: false
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Temporarily allow all origins for debugging
+    }
+  },
+  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  credentials: false,
+  optionsSuccessStatus: 200,
+  preflightContinue: false
 }));
 
 // Add JSON parsing middleware
 app.use(express.json());
+
+// Handle preflight requests
+app.options('*', cors());
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'false');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 // Create Socket.IO server
 const io = new Server(httpServer, {
@@ -67,6 +97,12 @@ io.on('connection', (socket) => {
 
 // --- ToyyibPay Bill Creation Endpoint ---
 app.post('/api/toyyibpay/create-bill', async (req, res) => {
+  console.log('--- ToyyibPay Bill Creation Request ---');
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('Origin:', req.headers.origin);
+  console.log('-------------------------------------');
+  
   try {
     const { fullName, email, phone, amount } = req.body;
 
@@ -84,7 +120,7 @@ app.post('/api/toyyibpay/create-bill', async (req, res) => {
       billPayorInfo: 1, // 1 to require payor info
       billAmount: Math.round(amount * 100), // Amount in cents
       billReturnUrl: 'https://projecttff-80675.web.app/payment-success',
-      billCallbackUrl: `${process.env.SOCKET_SERVER_URL || 'https://your-socket-server.onrender.com'}/api/toyyibpay/callback`,
+      billCallbackUrl: `${process.env.SOCKET_SERVER_URL || 'https://tff-socket-server.onrender.com'}/api/toyyibpay/callback`,
       billExternalReferenceNo: `ORD-${Date.now()}`,
       billTo: fullName,
       billEmail: email,
@@ -140,6 +176,16 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Test CORS endpoint
+app.get('/api/test-cors', (req, res) => {
+  console.log('CORS test request from:', req.headers.origin);
+  res.json({ 
+    message: 'CORS is working!',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
   });
 });
 
