@@ -84,7 +84,7 @@ app.post('/api/toyyibpay/create-bill', async (req, res) => {
       billPayorInfo: 1, // 1 to require payor info
       billAmount: Math.round(amount * 100), // Amount in cents
       billReturnUrl: 'https://projecttff-80675.web.app/payment-success',
-      billCallbackUrl: `https://projecttff-80675.web.app/api/toyyibpay/callback`,
+      billCallbackUrl: `${process.env.SOCKET_SERVER_URL || 'https://your-socket-server.onrender.com'}/api/toyyibpay/callback`,
       billExternalReferenceNo: `ORD-${Date.now()}`,
       billTo: fullName,
       billEmail: email,
